@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Workforce — Your Personal AI Company</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0f1117; color: #e1e4e8; font-family: -apple-system, system-ui, sans-serif; }
+        .tab-btn { transition: all 0.2s; }
+        .tab-btn.active { background: #1f6feb; color: #fff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; }
+        .agent-card { transition: all 0.2s; cursor: pointer; }
+        .agent-card:hover { border-color: #1f6feb; transform: translateY(-2px); }
+        pre { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; overflow-x: auto; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50; display: inline-block; }
+        .pulse { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+        input, textarea, select { background: #0d1117; border: 1px solid #30363d; color: #e1e4e8; border-radius: 6px; padding: 8px 12px; }
+        input:focus, textarea:focus { outline: none; border-color: #1f6feb; }
+        .btn { background: #1f6feb; color: #fff; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn:hover { background: #388bfd; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-sec { background: #21262d; border: 1px solid #30363d; }
+        .btn-sec:hover { background: #30363d; }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Header -->
+    <header class="border-b border-gray-800 px-6 py-4">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold">🤖 AI Workforce</h1>
+                <p class="text-sm text-gray-400">Your personal AI company — running on your laptop</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="ollama-status" class="text-sm flex items-center gap-2">
+                    <span class="status-dot bg-gray-500"></span>
+                    <span>Checking Ollama...</span>
+                </span>
+                <button onclick="checkHealth()" class="btn btn-sec text-sm">Refresh</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="border-b border-gray-800 px-6">
+        <div class="max-w-6xl mx-auto flex gap-1">
+            <button class="tab-btn active px-4 py-3 text-sm font-medium" data-tab="pipeline" onclick="switchTab('pipeline')">Pipeline</button>
+            <button class="tab-btn px-4 py-3 text-sm font-medium" data-tab="agents" onclick="switchTab('agents')">Agents</button>
+            <button class="tab-btn px-4 py-3 text-sm font-medium" data-tab="memory" onclick="switchTab('memory')">Memory</button>
+            <button class="tab-btn px-4 py-3 text-sm font-medium" data-tab="about" onclick="switchTab('about')">About</button>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto p-6">
+        <!-- Pipeline Tab -->
+        <div id="tab-pipeline" class="tab-content active">
+            <div class="card p-6 mb-6">
+                <h2 class="text-lg font-bold mb-4">Run the Workforce Pipeline</h2>
+                <p class="text-sm text-gray-400 mb-4">Type a goal. The CEO agent breaks it down, then Research → Architect → Code → QA → Docs agents each do their part.</p>
+                <div class="flex gap-3 mb-4">
+                    <input id="goal-input" type="text" class="flex-1" placeholder="e.g., Build a CRM application" value="Build a todo list REST API with SQLite">
+                    <button id="run-btn" class="btn" onclick="runPipeline()">Run Pipeline</button>
+                </div>
+                <div class="flex gap-4 text-sm">
+                    <label class="flex items-center gap-2"><input type="checkbox" id="use-loops" checked> Self-improvement loops</label>
+                    <label class="flex items-center gap-2"><input type="checkbox" id="use-harness" checked> Harness (retry+timeout)</label>
+                    <label class="flex items-center gap-2">Loop cycles: <input type="number" id="loop-cycles" value="2" class="w-16 text-center" min="1" max="5"></label>
+                </div>
+            </div>
+
+            <!-- Pipeline visualization -->
+            <div id="pipeline-steps" class="space-y-3">
+                <div class="card p-4 text-center text-gray-500">
+                    Pipeline results will appear here after running.
+                </div>
+            </div>
+        </div>
+
+        <!-- Agents Tab -->
+        <div id="tab-agents" class="tab-content">
+            <h2 class="text-lg font-bold mb-4">AI Employees</h2>
+            <div id="agents-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
+
+            <!-- Single agent runner -->
+            <div class="card p-6">
+                <h3 class="text-md font-bold mb-3">Run a Single Agent</h3>
+                <div class="flex gap-3 mb-3">
+                    <select id="agent-select" class="w-48"></select>
+                    <input id="agent-task" type="text" class="flex-1" placeholder="Task for the agent...">
+                    <button class="btn" onclick="runSingleAgent()">Execute</button>
+                </div>
+                <div id="single-agent-result" class="mt-4"></div>
+            </div>
+        </div>
+
+        <!-- Memory Tab -->
+        <div id="tab-memory" class="tab-content">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold">Workforce Memory</h2>
+                <button onclick="loadMemory()" class="btn btn-sec text-sm">Refresh</button>
+            </div>
+            <div id="memory-stats" class="grid grid-cols-3 gap-4 mb-6"></div>
+            <div id="memory-list" class="space-y-3"></div>
+        </div>
+
+        <!-- About Tab -->
+        <div id="tab-about" class="tab-content">
+            <div class="card p-8">
+                <h2 class="text-xl font-bold mb-4">Agent → Harness → Loops → Memory</h2>
+                <p class="text-gray-400 mb-6">The AI Workforce is built on four layers. Each layer makes the system more reliable and intelligent.</p>
+                
+                <div class="space-y-4">
+                    <div class="border-l-4 border-blue-500 pl-4">
+                        <h3 class="font-bold text-blue-400">🧠 Agent</h3>
+                        <p class="text-sm text-gray-400 mt-1">Wraps an LLM with a role-specific system prompt. Each agent is an "employee" — CEO, Researcher, Coder, QA, Docs, Deploy, Marketing. Each gets the right model for their job (coder model for coding, heavy model for planning).</p>
+                    </div>
+                    <div class="border-l-4 border-green-500 pl-4">
+                        <h3 class="font-bold text-green-400">🛡️ Harness</h3>
+                        <p class="text-sm text-gray-400 mt-1">Safety layer: retry with exponential backoff, circuit breaker (3 failures → open → 30s cooldown → half-open), timeout enforcement, response validation. Makes the workforce reliable instead of fragile.</p>
+                    </div>
+                    <div class="border-l-4 border-yellow-500 pl-4">
+                        <h3 class="font-bold text-yellow-400">🔄 Loops</h3>
+                        <p class="text-sm text-gray-400 mt-1">Self-improvement: generate → score → check convergence → adapt → repeat. Each cycle, the agent tries to improve its output. The scorer evaluates length, code presence, examples, and structure. Meta-learner adjusts temperature if stuck.</p>
+                    </div>
+                    <div class="border-l-4 border-purple-500 pl-4">
+                        <h3 class="font-bold text-purple-400">💾 Memory</h3>
+                        <p class="text-sm text-gray-400 mt-1">SQLite-backed persistence: every interaction recorded, project state saved, per-agent knowledge stored. Agents remember what worked, what didn't, and the current project context.</p>
+                    </div>
+                </div>
+
+                <div class="mt-8">
+                    <h3 class="text-lg font-bold mb-3">Tech Stack</h3>
+                    <ul class="text-sm text-gray-400 space-y-1">
+                        <li>• <strong>LLMs:</strong> Ollama local models (qwen3.5:4b, qwen2.5-coder:7b, qwen3.5:35b-a3b)</li>
+                        <li>• <strong>Framework:</strong> FastAPI + httpx (async)</li>
+                        <li>• <strong>Database:</strong> SQLite (built into Python — zero infrastructure)</li>
+                        <li>• <strong>UI:</strong> Tailwind CDN dark theme dashboard</li>
+                        <li>• <strong>Pattern:</strong> Agent → Harness → Loops → Memory</li>
+                    </ul>
+                </div>
+
+                <div class="mt-8">
+                    <h3 class="text-lg font-bold mb-3">Pipeline Flow</h3>
+                    <div class="flex items-center gap-2 text-sm flex-wrap">
+                        <span class="bg-blue-900 px-3 py-1 rounded">Goal</span>
+                        <span>→</span>
+                        <span class="bg-purple-900 px-3 py-1 rounded">CEO</span>
+                        <span>→</span>
+                        <span class="bg-green-900 px-3 py-1 rounded">Research</span>
+                        <span>→</span>
+                        <span class="bg-yellow-900 px-3 py-1 rounded">Architect</span>
+                        <span>→</span>
+                        <span class="bg-cyan-900 px-3 py-1 rounded">Code</span>
+                        <span>→</span>
+                        <span class="bg-red-900 px-3 py-1 rounded">QA</span>
+                        <span>→</span>
+                        <span class="bg-gray-700 px-3 py-1 rounded">Docs</span>
+                    </div>
+                </div>
+
+                <div class="mt-8 p-4 bg-gray-800 rounded-lg">
+                    <p class="text-sm text-gray-400">Built for <strong>Surya Agentic Academy</strong> — teaching the Agent→Harness→Loops→Memory framework with a working, hands-on demo.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // ─── Tab switching ───
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            
+            if (tabName === 'agents') loadAgents();
+            if (tabName === 'memory') loadMemory();
+        }
+
+        // ─── Health check ───
+        async function checkHealth() {
+            try {
+                const res = await fetch('/health');
+                const data = await res.json();
+                const status = document.getElementById('ollama-status');
+                if (data.ollama_running) {
+                    status.innerHTML = `<span class="status-dot bg-green-500"></span><span>Ollama running — ${data.available_models.length} models</span>`;
+                } else {
+                    status.innerHTML = `<span class="status-dot bg-red-500 pulse"></span><span>Ollama offline — start with: ollama serve</span>`;
+                }
+            } catch (e) {
+                document.getElementById('ollama-status').innerHTML = `<span class="status-dot bg-red-500 pulse"></span><span>Server error</span>`;
+            }
+        }
+
+        // ─── Run pipeline ───
+        async function runPipeline() {
+            const goal = document.getElementById('goal-input').value.trim();
+            if (!goal) return alert('Enter a goal!');
+            
+            const btn = document.getElementById('run-btn');
+            btn.disabled = true;
+            btn.textContent = 'Running pipeline...';
+            
+            document.getElementById('pipeline-steps').innerHTML = `
+                <div class="card p-6 text-center">
+                    <div class="text-blue-400 text-lg pulse mb-2">⚡ Workforce running...</div>
+                    <p class="text-sm text-gray-400">CEO is planning, then research → architect → code → QA → docs</p>
+                    <p class="text-xs text-gray-500 mt-2">This takes 2-5 minutes with local models. Keep this tab open.</p>
+                </div>
+            `;
+
+            try {
+                const res = await fetch('/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        goal: goal,
+                        use_loops: document.getElementById('use-loops').checked,
+                        use_harness: document.getElementById('use-harness').checked,
+                        max_loop_cycles: parseInt(document.getElementById('loop-cycles').value),
+                    })
+                });
+                const data = await res.json();
+                renderPipeline(data);
+            } catch (e) {
+                document.getElementById('pipeline-steps').innerHTML = `<div class="card p-4 text-red-400">Error: ${e.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Run Pipeline';
+            }
+        }
+
+        function renderPipeline(data) {
+            const container = document.getElementById('pipeline-steps');
+            let html = `<div class="card p-4 mb-4">
+                <div class="flex justify-between items-center">
+                    <div><span class="text-gray-400 text-sm">Goal:</span> <strong>${data.goal}</strong></div>
+                    <div class="text-sm text-gray-400">${data.completed}/${data.total_steps} done in ${(data.total_duration_ms/1000).toFixed(1)}s</div>
+                </div>
+            </div>`;
+
+            const colors = { CEO: 'purple', Researcher: 'green', Architect: 'yellow', Coder: 'cyan', QA: 'red', Docs: 'gray' };
+            
+            data.steps.forEach(step => {
+                const color = colors[step.agent] || 'blue';
+                const statusIcon = step.status === 'completed' ? '✅' : '❌';
+                html += `
+                    <div class="card p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-lg">${statusIcon}</span>
+                                <div>
+                                    <span class="font-bold text-${color}-400">${step.agent}</span>
+                                    <span class="text-gray-500 text-sm ml-2">${step.role}</span>
+                                </div>
+                            </div>
+                            <div class="text-sm text-gray-400">${(step.duration_ms/1000).toFixed(1)}s · score: ${step.score}</div>
+                        </div>
+                        <div class="text-sm text-gray-500 mb-2"><strong>Task:</strong> ${step.task}</div>
+                        <details><summary class="cursor-pointer text-sm text-blue-400">View response</summary>
+                            <pre class="mt-2 text-xs whitespace-pre-wrap">${step.response_preview}</pre>
+                        </details>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // ─── Load agents ───
+        async function loadAgents() {
+            try {
+                const res = await fetch('/agents');
+                const data = await res.json();
+                const grid = document.getElementById('agents-grid');
+                const icons = { CEO: '👔', Researcher: '🔍', Architect: '📐', Coder: '💻', QA: '🧪', Docs: '📝', Deploy: '🚀', Marketing: '📢' };
+                
+                grid.innerHTML = data.agents.map(a => `
+                    <div class="agent-card card p-4">
+                        <div class="text-3xl mb-2">${icons[a.name] || '🤖'}</div>
+                        <h3 class="font-bold">${a.name}</h3>
+                        <p class="text-xs text-gray-400 mb-2">${a.role}</p>
+                        <div class="text-xs space-y-1 text-gray-500">
+                            <div>Model: <span class="text-gray-300">${a.model}</span></div>
+                            <div>Calls: <span class="text-gray-300">${a.calls}</span></div>
+                            <div>Success: <span class="text-green-400">${a.success_rate}</span></div>
+                            <div>Avg latency: <span class="text-gray-300">${a.avg_latency_ms}</span></div>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Populate agent select
+                const select = document.getElementById('agent-select');
+                select.innerHTML = data.agents.map(a => `<option value="${a.key}">${a.name} — ${a.role}</option>`).join('');
+            } catch (e) {
+                console.error('Failed to load agents:', e);
+            }
+        }
+
+        async function runSingleAgent() {
+            const agentKey = document.getElementById('agent-select').value;
+            const task = document.getElementById('agent-task').value.trim();
+            if (!task) return alert('Enter a task!');
+            
+            const container = document.getElementById('single-agent-result');
+            container.innerHTML = '<div class="text-blue-400 text-sm pulse">Running agent...</div>';
+            
+            try {
+                const res = await fetch(`/agent/${agentKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task: task })
+                });
+                const data = await res.json();
+                container.innerHTML = `
+                    <div class="card p-4 mt-3">
+                        <div class="flex justify-between mb-2">
+                            <span class="font-bold">${data.agent}</span>
+                            <span class="text-xs text-gray-400">${data.model}</span>
+                        </div>
+                        <pre class="text-xs whitespace-pre-wrap max-h-96 overflow-y-auto">${data.response}</pre>
+                    </div>
+                `;
+            } catch (e) {
+                container.innerHTML = `<div class="text-red-400 text-sm">Error: ${e.message}</div>`;
+            }
+        }
+
+        // ─── Load memory ───
+        async function loadMemory() {
+            try {
+                const [statsRes, memRes] = await Promise.all([
+                    fetch('/memory/stats'),
+                    fetch('/memory?limit=20')
+                ]);
+                const stats = await statsRes.json();
+                const mem = await memRes.json();
+                
+                document.getElementById('memory-stats').innerHTML = `
+                    <div class="card p-4 text-center"><div class="text-2xl font-bold text-blue-400">${stats.total_interactions}</div><div class="text-xs text-gray-400">Interactions</div></div>
+                    <div class="card p-4 text-center"><div class="text-2xl font-bold text-green-400">${stats.project_state_keys}</div><div class="text-xs text-gray-400">Project State Keys</div></div>
+                    <div class="card p-4 text-center"><div class="text-2xl font-bold text-purple-400">${stats.agent_knowledge_items}</div><div class="text-xs text-gray-400">Agent Knowledge</div></div>
+                `;
+                
+                document.getElementById('memory-list').innerHTML = mem.interactions.map(i => `
+                    <div class="card p-3">
+                        <div class="flex justify-between text-xs text-gray-500 mb-1">
+                            <span><strong class="text-gray-300">${i.agent_name}</strong> — ${i.agent_role}</span>
+                            <span>${i.timestamp}</span>
+                        </div>
+                        <div class="text-sm text-gray-400 mb-1">${i.prompt.substring(0, 100)}...</div>
+                        <details><summary class="cursor-pointer text-xs text-blue-400">View response</summary>
+                            <pre class="mt-1 text-xs whitespace-pre-wrap max-h-48 overflow-y-auto">${i.response}</pre>
+                        </details>
+                    </div>
+                `).join('') || '<div class="text-gray-500 text-center">No interactions yet</div>';
+            } catch (e) {
+                console.error('Failed to load memory:', e);
+            }
+        }
+
+        // ─── Init ───
+        checkHealth();
+    </script>
+</body>
+</html>
