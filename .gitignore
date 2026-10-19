@@ -7,3 +7,9 @@ secrets.json
 service-account*.json
 venv/
 __pycache__/
+
+# Local databases - never commit (added 2026-10-19)
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
